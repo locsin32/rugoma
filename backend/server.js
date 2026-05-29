@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connect to MySQL database
+
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'root',
@@ -23,7 +23,7 @@ db.connect((err) => {
   }
 });
 
-// ===================== SIGNUP =====================
+//SIGNUP
 app.post('/api/signup', async (req, res) => {
   const { username, password } = req.body;
 
@@ -42,7 +42,7 @@ app.post('/api/signup', async (req, res) => {
   );
 });
 
-// ===================== LOGIN =====================
+//LOGIN 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
 
@@ -65,9 +65,9 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// ===================== VISITOR IN =====================
+// visitor-in
 
-// Get all visitors in
+
 app.get('/api/visitor-in', (req, res) => {
   db.query('SELECT * FROM visit_in', (err, results) => {
     if (err) return res.status(500).json({ message: err.message });
@@ -75,7 +75,7 @@ app.get('/api/visitor-in', (req, res) => {
   });
 });
 
-// Add visitor in (check in)
+
 app.post('/api/visitor-in', (req, res) => {
   const { vin_name, purpose } = req.body;
 
@@ -92,7 +92,7 @@ app.post('/api/visitor-in', (req, res) => {
   );
 });
 
-// Edit visitor in record
+
 app.put('/api/visitor-in/:id', (req, res) => {
   const { vin_name, purpose } = req.body;
   db.query('UPDATE visit_in SET vin_name = ?, purpose = ? WHERE vin_id = ?',
@@ -104,7 +104,7 @@ app.put('/api/visitor-in/:id', (req, res) => {
   );
 });
 
-// Delete visitor in record
+
 app.delete('/api/visitor-in/:id', (req, res) => {
   db.query('DELETE FROM visit_in WHERE vin_id = ?', [req.params.id], (err) => {
     if (err) return res.status(500).json({ message: err.message });
@@ -112,9 +112,8 @@ app.delete('/api/visitor-in/:id', (req, res) => {
   });
 });
 
-// ===================== VISITOR OUT =====================
 
-// Get visitors who are checked IN but NOT yet checked OUT (available to check out)
+
 app.get('/api/visitors-inside', (req, res) => {
   const sql = `SELECT * FROM visit_in 
                WHERE vin_name NOT IN (SELECT vin_name FROM visit_out)`;
@@ -124,7 +123,7 @@ app.get('/api/visitors-inside', (req, res) => {
   });
 });
 
-// Get all visitors out
+
 app.get('/api/visitor-out', (req, res) => {
   db.query('SELECT * FROM visit_out ORDER BY time_out DESC', (err, results) => {
     if (err) return res.status(500).json({ message: err.message });
@@ -132,7 +131,7 @@ app.get('/api/visitor-out', (req, res) => {
   });
 });
 
-// Add visitor out (check out) - only if visitor is checked in
+
 app.post('/api/visitor-out', (req, res) => {
   const { vin_name } = req.body;
 
@@ -140,16 +139,48 @@ app.post('/api/visitor-out', (req, res) => {
     return res.status(400).json({ message: 'Visitor name is required' });
   }
 
-  // Check if visitor is checked in
   db.query('SELECT * FROM visit_in WHERE vin_name = ?', [vin_name], (err, rows) => {
     if (err) return res.status(500).json({ message: err.message });
     if (rows.length === 0)
       return res.status(400).json({ message: 'Visitor is not checked in' });
 
-    // Check if already checked out
+
     db.query('SELECT * FROM visit_out WHERE vin_name = ?', [vin_name], (err2, rows2) => {
       if (err2) return res.status(500).json({ message: err2.message });
       if (rows2.length > 0)
         return res.status(400).json({ message: 'Visitor already checked out' });
 
-      // All g
+
+      db.query('INSERT INTO visit_out (vin_name) VALUES (?)', [vin_name], (err3, result) => {
+        if (err3) return res.status(500).json({ message: err3.message });
+        res.json({ message: 'Visitor checked out successfully', id: result.insertId });
+      });
+    });
+  });
+});
+
+app.put('/api/visitor-out/:id', (req, res) => {
+  const { vin_name } = req.body;
+  db.query('UPDATE visit_out SET vin_name = ? WHERE vout_id = ?',
+    [vin_name, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ message: err.message });
+      res.json({ message: 'Record updated successfully' });
+    }
+  );
+});
+
+
+app.delete('/api/visitor-out/:id', (req, res) => {
+  db.query('DELETE FROM visit_out WHERE vout_id = ?', [req.params.id], (err) => {
+    if (err) return res.status(500).json({ message: err.message });
+    res.json({ message: 'Record deleted' });
+  });
+});
+
+
+
+
+app.listen(5000, () => {
+  console.log('Server is running on http://localhost:5000');
+});
